@@ -3,9 +3,12 @@ package parser
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/fatih/color"
 	tfjson "github.com/hashicorp/terraform-json"
+
+	"github.com/wI2L/jsondiff"
 )
 
 const (
@@ -58,12 +61,15 @@ func processResourceChange(resourceChange *tfjson.ResourceChange, showTags bool)
 
 		if isTagChange && showTags {
 			resourcesList[TAG] = append(resourcesList[TAG], resourceChange.Address)
-			resourcesList[UPDATE] = append(resourcesList[UPDATE], resourceChange.Address)
-			return
 		}
 
-		addActionToResourceList(resourceChange.Change.Actions, resourceChange.Address)
-
+		detailedChanges := processDetailedChanges(resourceChange)
+		if detailedChanges != "" {
+			addActionToResourceListWithDetails(resourceChange.Change.Actions, resourceChange.Address, detailedChanges)
+		} else {
+			addActionToResourceList(resourceChange.Change.Actions, resourceChange.Address)
+		}
+		return
 	} else {
 		// Not an update, add to other categories as necessary
 		addActionToResourceList(resourceChange.Change.Actions, resourceChange.Address)
@@ -102,6 +108,13 @@ func hasTagChanges(resourceChange *tfjson.ResourceChange) bool {
 func addActionToResourceList(actions []tfjson.Action, address string) {
 	for _, action := range actions {
 		resourcesList[string(action)] = append(resourcesList[string(action)], address)
+	}
+}
+
+func addActionToResourceListWithDetails(actions []tfjson.Action, address string, details string) {
+	for _, action := range actions {
+		resourceDetail := fmt.Sprintf("%s [%s]", address, details)
+		resourcesList[string(action)] = append(resourcesList[string(action)], resourceDetail)
 	}
 }
 
@@ -150,6 +163,117 @@ func PrintPlanSummary(showTags, showUnchanged, compact, useMarkdown bool) {
 	PrintResources("🟢 Create:", resourcesList[CREATE], "+", color.New(color.FgGreen), compact, useMarkdown)
 	PrintResources("🟡 Update:", resourcesList[UPDATE], "~", color.New(color.FgYellow), compact, useMarkdown)
 	PrintResources("🔴 Destroy:", resourcesList[DELETE], "-", color.New(color.FgRed), compact, useMarkdown)
+}
+
+func processDetailedChanges(resourceChange *tfjson.ResourceChange) string {
+	beforeRaw, _ := json.Marshal(resourceChange.Change.Before)
+	afterRaw, _ := json.Marshal(resourceChange.Change.After)
+	beforeStr, afterStr := string(beforeRaw), string(afterRaw)
+
+	patch, err := generateJSONDiff(beforeStr, afterStr)
+	if err != nil {
+		// handle error
+		return ""
+	}
+
+	// Use the custom formatter
+	return formatPatch(patch)
+}
+
+func marshalIndentJSON(obj interface{}) (string, error) {
+	bytes, err := json.MarshalIndent(obj, "", "  ")
+	if err != nil {
+		return "", err
+	}
+	return string(bytes), nil
+}
+
+func diffLines(a, b string) string {
+	var result strings.Builder
+
+	aLines := strings.Split(a, "\n")
+	bLines := strings.Split(b, "\n")
+
+	maxLen := len(aLines)
+	if len(bLines) > maxLen {
+		maxLen = len(bLines)
+	}
+
+	for i := 0; i < maxLen; i++ {
+		var aLine, bLine string
+		if i < len(aLines) {
+			aLine = aLines[i]
+		}
+		if i < len(bLines) {
+			bLine = bLines[i]
+		}
+
+		if aLine != bLine {
+			result.WriteString(fmt.Sprintf("- %s\n+ %s\n", aLine, bLine))
+		}
+	}
+
+	return result.String()
+}
+
+// func processDetailedChanges(resourceChange *tfjson.ResourceChange) string {
+// 	var details []string
+
+// 	// Type assert to map[string]interface{}
+// 	before, okBefore := resourceChange.Change.Before.(map[string]interface{})
+// 	after, okAfter := resourceChange.Change.After.(map[string]interface{})
+// 	if !okBefore || !okAfter {
+// 		return ""
+// 	}
+
+// 	for key := range after {
+// 		beforeRaw, errBefore := json.Marshal(before[key])
+// 		afterRaw, errAfter := json.Marshal(after[key])
+// 		if errBefore != nil || errAfter != nil {
+// 			continue // Skip this key if there is an error in marshaling
+// 		}
+
+// 		beforeStr, afterStr := string(beforeRaw), string(afterRaw)
+
+// 		if beforeStr != afterStr {
+// 			diff := generateJSONDiff(beforeStr, afterStr)
+// 			if diff != "" {
+// 				details = append(details, fmt.Sprintf("~%s:\n%s", key, diff))
+// 			}
+// 		}
+// 	}
+
+// 	return strings.Join(details, "\n")
+// }
+
+func formatPatch(patch []jsondiff.Operation) string {
+	var details strings.Builder
+
+	for _, op := range patch {
+		switch op.Type {
+		case jsondiff.OperationAdd:
+			details.WriteString(fmt.Sprintf("\n    + %s: %v\n", op.Path, op.Value))
+		case jsondiff.OperationRemove:
+			details.WriteString(fmt.Sprintf("\n    - %s\n", op.Path))
+		case jsondiff.OperationReplace:
+			details.WriteString(fmt.Sprintf("\n    ~ %s: %v -> %v\n", op.Path, op.OldValue, op.Value))
+			// Handle other cases like 'move' or 'copy' if necessary
+		}
+	}
+
+	return details.String()
+}
+
+func generateJSONDiff(before, after string) ([]jsondiff.Operation, error) {
+	var beforeObj, afterObj interface{}
+	json.Unmarshal([]byte(before), &beforeObj)
+	json.Unmarshal([]byte(after), &afterObj)
+
+	patch, err := jsondiff.Compare(beforeObj, afterObj)
+	if err != nil {
+		return nil, err
+	}
+	return patch, nil
 }
 
 func checkOnlyTagChanges(resourceChange *tfjson.ResourceChange) (bool, error) {
