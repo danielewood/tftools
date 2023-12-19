@@ -189,11 +189,11 @@ func formatPatch(patch []jsondiff.Operation) string {
 
 		switch op.Type {
 		case jsondiff.OperationAdd:
-			details.WriteString(fmt.Sprintf("\n    %s %s: %v", addColor("+"), formattedPath, op.Value))
+			details.WriteString(fmt.Sprintf("\n    %s %s: %v", addColor("+"), formattedPath, addColor(op.Value)))
 		case jsondiff.OperationRemove:
-			details.WriteString(fmt.Sprintf("\n    %s %s", removeColor("-"), formattedPath))
+			details.WriteString(fmt.Sprintf("\n    %s %s: %v", removeColor("-"), formattedPath, removeColor(op.OldValue)))
 		case jsondiff.OperationReplace:
-			details.WriteString(fmt.Sprintf("\n    %s %s: %v -> %v", replaceColor("~"), formattedPath, op.OldValue, op.Value))
+			details.WriteString(fmt.Sprintf("\n    %s %s: %v %s %v", replaceColor("~"), formattedPath, removeColor(op.OldValue), replaceColor("->"), addColor(op.Value)))
 			// Handle other cases like 'move' or 'copy' if necessary
 		}
 	}
