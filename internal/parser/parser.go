@@ -113,7 +113,7 @@ func addActionToResourceList(actions []tfjson.Action, address string) {
 
 func addActionToResourceListWithDetails(actions []tfjson.Action, address string, details string) {
 	for _, action := range actions {
-		resourceDetail := fmt.Sprintf("%s [%s]", address, details)
+		resourceDetail := fmt.Sprintf("%s %s", address, details)
 		resourcesList[string(action)] = append(resourcesList[string(action)], resourceDetail)
 	}
 }
@@ -216,47 +216,31 @@ func diffLines(a, b string) string {
 	return result.String()
 }
 
-// func processDetailedChanges(resourceChange *tfjson.ResourceChange) string {
-// 	var details []string
-
-// 	// Type assert to map[string]interface{}
-// 	before, okBefore := resourceChange.Change.Before.(map[string]interface{})
-// 	after, okAfter := resourceChange.Change.After.(map[string]interface{})
-// 	if !okBefore || !okAfter {
-// 		return ""
-// 	}
-
-// 	for key := range after {
-// 		beforeRaw, errBefore := json.Marshal(before[key])
-// 		afterRaw, errAfter := json.Marshal(after[key])
-// 		if errBefore != nil || errAfter != nil {
-// 			continue // Skip this key if there is an error in marshaling
-// 		}
-
-// 		beforeStr, afterStr := string(beforeRaw), string(afterRaw)
-
-// 		if beforeStr != afterStr {
-// 			diff := generateJSONDiff(beforeStr, afterStr)
-// 			if diff != "" {
-// 				details = append(details, fmt.Sprintf("~%s:\n%s", key, diff))
-// 			}
-// 		}
-// 	}
-
-// 	return strings.Join(details, "\n")
-// }
-
 func formatPatch(patch []jsondiff.Operation) string {
 	var details strings.Builder
 
+	addColor := color.New(color.FgGreen).SprintFunc()
+	removeColor := color.New(color.FgRed).SprintFunc()
+	replaceColor := color.New(color.FgYellow).SprintFunc()
+
 	for _, op := range patch {
+		formattedPath := strings.Replace(op.Path, "/", ".", -1)
+		if strings.HasPrefix(formattedPath, ".") {
+			formattedPath = formattedPath[1:]
+		}
+
+		// Skip paths starting with 'tags' or 'tags_all'
+		if strings.HasPrefix(formattedPath, "tags") || strings.HasPrefix(formattedPath, "tags_all") {
+			continue
+		}
+
 		switch op.Type {
 		case jsondiff.OperationAdd:
-			details.WriteString(fmt.Sprintf("\n    + %s: %v\n", op.Path, op.Value))
+			details.WriteString(fmt.Sprintf("\n    %s %s: %v", addColor("+"), formattedPath, op.Value))
 		case jsondiff.OperationRemove:
-			details.WriteString(fmt.Sprintf("\n    - %s\n", op.Path))
+			details.WriteString(fmt.Sprintf("\n    %s %s", removeColor("-"), formattedPath))
 		case jsondiff.OperationReplace:
-			details.WriteString(fmt.Sprintf("\n    ~ %s: %v -> %v\n", op.Path, op.OldValue, op.Value))
+			details.WriteString(fmt.Sprintf("\n    %s %s: %v -> %v", replaceColor("~"), formattedPath, op.OldValue, op.Value))
 			// Handle other cases like 'move' or 'copy' if necessary
 		}
 	}
