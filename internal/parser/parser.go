@@ -118,53 +118,6 @@ func addActionToResourceListWithDetails(actions []tfjson.Action, address string,
 	}
 }
 
-func PrintResources(message string, resources []string, bulletSymbol string, color *color.Color, compact bool, useMarkdown bool) {
-	if len(resources) != 0 {
-		if useMarkdown {
-			fmt.Printf("## %s\n\n", message) // Markdown header for the message
-			for _, resource := range resources {
-				var emoji string
-				switch bulletSymbol {
-				case "+":
-					emoji = "✅" // Green check mark for create
-				case "~":
-					emoji = "⚠️" // Yellow warning sign for update
-				case "-":
-					emoji = "🧨" // Red circle for destroy
-				case "#":
-					emoji = "#️⃣" // Blue diamond for tag/untag
-				case "•":
-					emoji = "🔷" // Blue circle for unchanged
-				default:
-					emoji = "➡️" // Default arrow
-				}
-				fmt.Printf("* %s %s\n", emoji, resource)
-			}
-		} else {
-			fmt.Println(message)
-			for _, resource := range resources {
-				color.Printf("  %s ", bulletSymbol)
-				fmt.Println(resource)
-			}
-		}
-		if !compact {
-			fmt.Println()
-		}
-	}
-}
-
-func PrintPlanSummary(showTags, showUnchanged, compact, useMarkdown bool) {
-	if showUnchanged {
-		PrintResources("🔵 Unchanged:", resourcesList[NOOP], "•", color.New(color.FgBlue), compact, useMarkdown)
-	}
-	if showTags {
-		PrintResources("🟣 Tag/Untag:", resourcesList[TAG], "#", color.New(color.FgMagenta), compact, useMarkdown)
-	}
-	PrintResources("🟢 Create:", resourcesList[CREATE], "+", color.New(color.FgGreen), compact, useMarkdown)
-	PrintResources("🟡 Update:", resourcesList[UPDATE], "~", color.New(color.FgYellow), compact, useMarkdown)
-	PrintResources("🔴 Destroy:", resourcesList[DELETE], "-", color.New(color.FgRed), compact, useMarkdown)
-}
-
 func processDetailedChanges(resourceChange *tfjson.ResourceChange) string {
 	beforeRaw, _ := json.Marshal(resourceChange.Change.Before)
 	afterRaw, _ := json.Marshal(resourceChange.Change.After)
@@ -322,4 +275,51 @@ func contains(slice []tfjson.Action, val tfjson.Action) bool {
 		}
 	}
 	return false
+}
+
+func PrintResources(message string, resources []string, bulletSymbol string, color *color.Color, compact bool, useMarkdown bool) {
+	if len(resources) != 0 {
+		if useMarkdown {
+			fmt.Printf("## %s\n\n", message) // Markdown header for the message
+			for _, resource := range resources {
+				var emoji string
+				switch bulletSymbol {
+				case "+":
+					emoji = "✅" // Green check mark for create
+				case "~":
+					emoji = "⚠️" // Yellow warning sign for update
+				case "-":
+					emoji = "🧨" // Red circle for destroy
+				case "#":
+					emoji = "#️⃣" // Blue diamond for tag/untag
+				case "•":
+					emoji = "🔷" // Blue circle for unchanged
+				default:
+					emoji = "➡️" // Default arrow
+				}
+				fmt.Printf("* %s %s\n", emoji, resource)
+			}
+		} else {
+			fmt.Println(message)
+			for _, resource := range resources {
+				color.Printf("  %s ", bulletSymbol)
+				fmt.Println(resource)
+			}
+		}
+		if !compact {
+			fmt.Println()
+		}
+	}
+}
+
+func PrintPlanSummary(showTags, showUnchanged, compact, useMarkdown bool) {
+	if showUnchanged {
+		PrintResources("🔵 Unchanged:", resourcesList[NOOP], "•", color.New(color.FgBlue), compact, useMarkdown)
+	}
+	if showTags {
+		PrintResources("🟣 Tag/Untag:", resourcesList[TAG], "#", color.New(color.FgMagenta), compact, useMarkdown)
+	}
+	PrintResources("🟢 Create:", resourcesList[CREATE], "+", color.New(color.FgGreen), compact, useMarkdown)
+	PrintResources("🟡 Update:", resourcesList[UPDATE], "~", color.New(color.FgYellow), compact, useMarkdown)
+	PrintResources("🔴 Destroy:", resourcesList[DELETE], "-", color.New(color.FgRed), compact, useMarkdown)
 }
