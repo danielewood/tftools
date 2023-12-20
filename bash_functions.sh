@@ -8,7 +8,7 @@ tfsum() {
     TMP_FILE=$(mktemp /tmp/tfplan.XXXXXX)
 
     # Execute terraform plan and other commands
-    terraform plan -out=${TMP_FILE} "$@" |
+    terraform plan -lock=false -compact-warnings -out=${TMP_FILE} "$@" |
       # Remove the line mentioning where the plan was saved
       awk '!/Saved the plan to/{print;next} /Saved the plan to/{exit}' &&
         terraform show -json ${TMP_FILE} |
