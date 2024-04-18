@@ -23,7 +23,7 @@ var (
 	resourcesList = make(map[string][]string)
 )
 
-func Parser(output []byte, showTags, showUnchanged, compact, useMarkdown bool) {
+func Parser(output []byte, showTags, showUnchanged, compact, useMarkdown bool, useJson bool, metrics bool, prettyJSON bool) {
 	var data tfjson.Plan
 	if err := json.Unmarshal(output, &data); err != nil {
 		fmt.Printf("Error unmarshalling plan: %v\n", err)
@@ -34,7 +34,7 @@ func Parser(output []byte, showTags, showUnchanged, compact, useMarkdown bool) {
 		processResourceChange(resourceChange, showTags)
 	}
 
-	PrintPlanSummary(showTags, showUnchanged, compact, useMarkdown)
+	PrintPlanSummary(showTags, showUnchanged, compact, useMarkdown, useJson, metrics, prettyJSON)
 }
 
 func processResourceChange(resourceChange *tfjson.ResourceChange, showTags bool) {
@@ -263,9 +263,9 @@ func checkOnlyTagChanges(resourceChange *tfjson.ResourceChange) (bool, error) {
 }
 
 func equal(a, b interface{}) bool {
-	aJson, _ := json.Marshal(a)
-	bJson, _ := json.Marshal(b)
-	return string(aJson) == string(bJson)
+	aJSON, _ := json.Marshal(a)
+	bJSON, _ := json.Marshal(b)
+	return string(aJSON) == string(bJSON)
 }
 
 func contains(slice []tfjson.Action, val tfjson.Action) bool {

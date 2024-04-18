@@ -2,13 +2,11 @@ module github.com/containerscrew/tftools
 
 go 1.21
 
-toolchain go1.21.5
-
 require (
 	github.com/charmbracelet/glamour v0.6.0
 	github.com/dimiro1/banner v1.1.0
 	github.com/fatih/color v1.16.0
-	github.com/hashicorp/terraform-json v0.18.0
+	github.com/hashicorp/terraform-json v0.21.0
 	github.com/mattn/go-colorable v0.1.13
 	github.com/spf13/cobra v1.8.0
 )
@@ -41,7 +39,7 @@ require (
 	github.com/yuin/goldmark v1.6.0 // indirect
 	github.com/yuin/goldmark-emoji v1.0.2 // indirect
 	github.com/zclconf/go-cty v1.14.1 // indirect
-	golang.org/x/net v0.19.0 // indirect
-	golang.org/x/sys v0.15.0 // indirect
+	golang.org/x/net v0.20.0 // indirect
+	golang.org/x/sys v0.16.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
 )

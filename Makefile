@@ -8,7 +8,7 @@ doctoc: ## Create table of contents with doctoc
 	doctoc .
 
 goreleaser: ## Generate go binaries using goreleaser (brew install goreleaser)
-	goreleaser release --snapshot --clean
+	goreleaser release --snapshot --clean -p 2
 
 golangci-lint: ## Lint Golang code (brew install golangci-lint)
 	golangci-lint run --fix
@@ -18,6 +18,12 @@ pre-commit: ## Run pre-commit
 
 go-generate: ## Run go generate
 	go generate ./...
+
+gosec: ## Run gosec
+	gosec -exclude=G104,G204 ./...
+
+update-dependencies: ## Update dependencies
+	go get -u ./...
 
 ##https://github.com/moovweb/gvm
 ##go get golang.org/x/tools/cmd/goimports
