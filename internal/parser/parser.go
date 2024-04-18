@@ -54,10 +54,6 @@ func processResourceChange(resourceChange *tfjson.ResourceChange, showTags bool)
 		}
 
 		isTagChange := hasTagChanges(resourceChange)
-		if err != nil {
-			fmt.Printf("Error checking for tag changes: %v\n", err)
-			return
-		}
 
 		if isTagChange && showTags {
 			resourcesList[TAG] = append(resourcesList[TAG], resourceChange.Address)
@@ -133,42 +129,6 @@ func processDetailedChanges(resourceChange *tfjson.ResourceChange) string {
 	return formatPatch(patch)
 }
 
-func marshalIndentJSON(obj interface{}) (string, error) {
-	bytes, err := json.MarshalIndent(obj, "", "  ")
-	if err != nil {
-		return "", err
-	}
-	return string(bytes), nil
-}
-
-func diffLines(a, b string) string {
-	var result strings.Builder
-
-	aLines := strings.Split(a, "\n")
-	bLines := strings.Split(b, "\n")
-
-	maxLen := len(aLines)
-	if len(bLines) > maxLen {
-		maxLen = len(bLines)
-	}
-
-	for i := 0; i < maxLen; i++ {
-		var aLine, bLine string
-		if i < len(aLines) {
-			aLine = aLines[i]
-		}
-		if i < len(bLines) {
-			bLine = bLines[i]
-		}
-
-		if aLine != bLine {
-			result.WriteString(fmt.Sprintf("- %s\n+ %s\n", aLine, bLine))
-		}
-	}
-
-	return result.String()
-}
-
 func formatPatch(patch []jsondiff.Operation) string {
 	var details strings.Builder
 
@@ -178,9 +138,7 @@ func formatPatch(patch []jsondiff.Operation) string {
 
 	for _, op := range patch {
 		formattedPath := strings.Replace(op.Path, "/", ".", -1)
-		if strings.HasPrefix(formattedPath, ".") {
-			formattedPath = formattedPath[1:]
-		}
+		formattedPath = strings.TrimPrefix(formattedPath, ".")
 
 		// Skip paths starting with 'tags' or 'tags_all'
 		if strings.HasPrefix(formattedPath, "tags") || strings.HasPrefix(formattedPath, "tags_all") {
@@ -312,14 +270,75 @@ func PrintResources(message string, resources []string, bulletSymbol string, col
 	}
 }
 
-func PrintPlanSummary(showTags, showUnchanged, compact, useMarkdown bool) {
-	if showUnchanged {
-		PrintResources("🔵 Unchanged:", resourcesList[NOOP], "•", color.New(color.FgBlue), compact, useMarkdown)
+func PrintPlanSummary(showTags, showUnchanged, compact, useMarkdown bool, useJson bool, metrics bool, prettyJSON bool) {
+	if useJson || prettyJSON {
+		PrintResourcesJson(showTags, showUnchanged, metrics, prettyJSON)
+	} else {
+		if showUnchanged {
+			PrintResources("🔵 Unchanged:", resourcesList[NOOP], "•", color.New(color.FgBlue), compact, useMarkdown)
+		}
+		if showTags {
+			PrintResources("🟣 Tag/Untag:", resourcesList[TAG], "#", color.New(color.FgMagenta), compact, useMarkdown)
+		}
+		PrintResources("🟢 Create:", resourcesList[CREATE], "+", color.New(color.FgGreen), compact, useMarkdown)
+		PrintResources("🟡 Update:", resourcesList[UPDATE], "~", color.New(color.FgYellow), compact, useMarkdown)
+		PrintResources("🔴 Destroy:", resourcesList[DELETE], "-", color.New(color.FgRed), compact, useMarkdown)
 	}
-	if showTags {
-		PrintResources("🟣 Tag/Untag:", resourcesList[TAG], "#", color.New(color.FgMagenta), compact, useMarkdown)
+}
+
+func PrintResourcesJson(showTags bool, showUnchanged bool, metrics bool, prettyJSON bool) {
+	if metrics {
+		var metricsData = make(map[string]int)
+
+		if showUnchanged {
+			metricsData["unchanged"] = len(resourcesList[NOOP])
+		}
+
+		if showTags {
+			metricsData["tag"] = len(resourcesList[TAG])
+		}
+
+		metricsData["create"] = len(resourcesList[CREATE])
+		metricsData["update"] = len(resourcesList[UPDATE])
+		metricsData["delete"] = len(resourcesList[DELETE])
+
+		if prettyJSON {
+			result, _ := json.MarshalIndent(metricsData, "", "  ")
+			fmt.Println(string(result))
+		} else {
+			result, _ := json.Marshal(metricsData)
+			fmt.Println(string(result))
+		}
+
+	} else {
+		var data = make(map[string][]string)
+
+		if showUnchanged && len(resourcesList[NOOP]) > 0 {
+			data["unchanged"] = resourcesList[NOOP]
+		}
+
+		if showTags && len(resourcesList[TAG]) > 0 {
+			data["tag"] = resourcesList[TAG]
+		}
+
+		if len(resourcesList[CREATE]) > 0 {
+			data["create"] = resourcesList[CREATE]
+		}
+
+		if len(resourcesList[UPDATE]) > 0 {
+			data["update"] = resourcesList[UPDATE]
+		}
+
+		if len(resourcesList[DELETE]) > 0 {
+			data["delete"] = resourcesList[DELETE]
+		}
+
+		if prettyJSON {
+			result, _ := json.MarshalIndent(data, "", "  ") //json.Marshal(data)
+			fmt.Println(string(result))
+		} else {
+			result, _ := json.Marshal(data)
+			fmt.Println(string(result))
+		}
 	}
-	PrintResources("🟢 Create:", resourcesList[CREATE], "+", color.New(color.FgGreen), compact, useMarkdown)
-	PrintResources("🟡 Update:", resourcesList[UPDATE], "~", color.New(color.FgYellow), compact, useMarkdown)
-	PrintResources("🔴 Destroy:", resourcesList[DELETE], "-", color.New(color.FgRed), compact, useMarkdown)
 }
