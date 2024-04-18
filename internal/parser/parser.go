@@ -238,7 +238,7 @@ func contains(slice []tfjson.Action, val tfjson.Action) bool {
 func PrintResources(message string, resources []string, bulletSymbol string, color *color.Color, compact bool, useMarkdown bool) {
 	if len(resources) != 0 {
 		if useMarkdown {
-			fmt.Printf("## %s\n\n", message) // Markdown header for the message
+			fmt.Printf("### %s\n\n", message) // Markdown header for the message
 			for _, resource := range resources {
 				var emoji string
 				switch bulletSymbol {
